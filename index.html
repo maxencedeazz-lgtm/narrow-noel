@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#c8323c">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>Narrow Noël – capture du drapeau à l’arc</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -282,7 +285,7 @@ button.ghost { margin-top: 10px; width: 100%; border: 2px solid var(--chip); bac
   <header class="topbar">
     <div class="brand"><span class="logo" aria-hidden="true">🏹</span><div><b>Narrow Noël</b><small>Capture du drapeau à l’arc</small></div></div>
     <div class="wallet" title="Tes pièces"><canvas id="menucoin" aria-hidden="true"></canvas><b id="walletval">0</b><span>pièces</span></div>
-    <nav class="topnav"><button id="openlook" type="button">Mon pingouin</button><button id="openshop" type="button">Boutique</button><button id="openkeys" type="button">Réglages</button></nav>
+    <nav class="topnav"><button id="installapp" type="button" hidden>Installer le jeu</button><button id="openlook" type="button">Mon pingouin</button><button id="openshop" type="button">Boutique</button><button id="openkeys" type="button">Réglages</button></nav>
   </header>
   <main class="menugrid">
     <section class="card playcard">
@@ -326,7 +329,7 @@ button.ghost { margin-top: 10px; width: 100%; border: 2px solid var(--chip); bac
       <section class="card">
         <h2 id="profiletitle">Ton profil</h2>
         <div id="stats" class="stats"></div>
-        <p class="note">Pièces : élimination 10, tête +5, assistance 5, drapeau pris 5, 2 par seconde avec le drapeau, capture 50, drapeau ramené 10, victoire 30. Dépense-les dans la boutique.</p>
+        <p class="note">Pièces : élimination 10, chaque tir dans la tête +8, assistance 5, drapeau pris 5, 2 par seconde avec le drapeau, capture 50, drapeau ramené 10, victoire 30. Dépense-les dans la boutique.</p>
       </section>
     </div>
   </main>
@@ -542,7 +545,7 @@ const WEAPONS = [
   { id: 'long', name: 'Arc long', desc: 'Sniper : lent à bander, très précis, gros zoom', draw: 1.45, v0: 34, v1: 112, g: 6.5, d0: 40, d1: 100, head: 100, move: 0.3, cd: 0.45, zoomK: 0.45 },
   { id: 'short', name: 'Arc court', desc: 'Tirs rapides, dégâts faibles, on bouge vite', draw: 0.4, v0: 20, v1: 44, g: 16, d0: 18, d1: 40, head: 70, move: 0.82, cd: 0.12 },
   { id: 'xbow', name: 'Arbalète', desc: 'Se recharge seule, tir instantané au clic', instant: true, reload: 1.35, v1: 82, g: 8.5, d1: 62, head: 100, move: 0.9, cd: 0.15 },
-  { id: 'triple', name: 'Arc triple', desc: 'Trois flèches en éventail, idéal de près', draw: 1.0, v0: 22, v1: 52, g: 13, d0: 16, d1: 38, head: 60, move: 0.5, cd: 0.35, count: 3, spread: 0.055 },
+  { id: 'triple', name: 'Arc triple', desc: 'Trois flèches en éventail, plus facile de toucher', draw: 1.0, v0: 22, v1: 52, g: 13, d0: 24, d1: 50, head: 60, move: 0.5, cd: 0.35, count: 3, spread: 0.055 },
 ];
 const W_OF = e => WEAPONS[e.weapon | 0] || WEAPONS[0];
 
@@ -614,8 +617,8 @@ function miniViewer(canvas, obj, o = {}) {
   requestAnimationFrame(frame);
   return v;
 }
-const ECON = { kill: 10, head: 5, assist: 5, pickup: 5, carry: 2, cap: 50, ret: 10, win: 30, loss: 10 };
-const ECON_LABEL = { kill: 'Élimination', head: 'Tir dans la tête', assist: 'Assistance', pickup: 'Drapeau pris', carry: 'Drapeau porté', cap: 'Drapeau capturé !', ret: 'Drapeau ramené', win: 'Victoire', loss: 'Partie terminée' };
+const ECON = { kill: 10, head: 8, assist: 5, pickup: 5, carry: 2, cap: 50, ret: 10, win: 30, loss: 10 };
+const ECON_LABEL = { kill: 'Élimination', head: 'Tir dans la tête !', assist: 'Assistance', pickup: 'Drapeau pris', carry: 'Drapeau porté', cap: 'Drapeau capturé !', ret: 'Drapeau ramené', win: 'Victoire', loss: 'Partie terminée' };
 const HATS = [
   { name: 'Bonnet d’équipe', color: null, price: 0 }, { name: 'Bonnet sapin', color: 0x2f8a4f, price: 80 }, { name: 'Bonnet glace', color: 0x7cc8f0, price: 80 },
   { name: 'Bonnet neige', color: 0xf3f6ff, price: 120 }, { name: 'Bonnet nuit étoilée', color: 0x3a2a6e, price: 160 }, { name: 'Bonnet doré', color: 0xf0bf4c, price: 300 }];
@@ -1409,10 +1412,18 @@ function segSegDist(p1, q1, p2, q2) {
   const c1 = [p1[0] + d1[0] * s, p1[1] + d1[1] * s, p1[2] + d1[2] * s], c2 = [p2[0] + d2[0] * t, p2[1] + d2[1] * t, p2[2] + d2[2] * t];
   return { d: Math.hypot(c1[0] - c2[0], c1[1] - c2[1], c1[2] - c2[2]), s };
 }
-const arrowGeo = (() => {
-  const G = packGeo('arrow');
-  return new THREE.Mesh(G.main, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+// arrows : the red fletching of the model is recoloured for each team (red team, blue team, neutral)
+const ARROW_GEOS = (() => {
+  const base = packGeo('arrow').main, col = base.attributes.color;
+  return [[0.94, 0.16, 0.1], [0.2, 0.47, 0.95], [0.95, 0.95, 0.95]].map(tc => {
+    const g = base.clone(), c = g.attributes.color;
+    for (let i = 0; i < c.count; i++) if (col.getX(i) > 0.8 && col.getY(i) < 0.3) c.setXYZ(i, tc[0], tc[1], tc[2]);
+    c.needsUpdate = true; return g;
+  });
 })();
+const ARROW_MAT = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+const arrowGeo = new THREE.Mesh(ARROW_GEOS[0], ARROW_MAT);
+const arrowFor = team => new THREE.Mesh(ARROW_GEOS[team === 1 ? 1 : team === 0 ? 0 : 2], ARROW_MAT);
 function isAuth(G, e) { return !G.net || e === G.player || (e.isBot && !e.puppet && NET.isHost); }
 function arrowSpeed(w, charge) { return w.instant ? w.v1 : w.v0 + (w.v1 - w.v0) * charge; }
 function fireArrow(G, e, dir, charge, origin, weapon, trailIdx) {
@@ -1425,7 +1436,7 @@ function fireArrow(G, e, dir, charge, origin, weapon, trailIdx) {
   for (let k = 0; k < n; k++) {
     const off = (k - (n - 1) / 2) * (w.spread || 0), c = Math.cos(off), s = Math.sin(off);
     const d = [dir[0] * c + dir[2] * s, dir[1], -dir[0] * s + dir[2] * c];      // fan out around the vertical axis
-    const m = arrowGeo.clone(); if (w.id === 'xbow') m.scale.set(1.2, 1.2, 0.7); if (w.id === 'long') m.scale.set(1, 1, 1.25); G.scene.add(m);
+    const m = arrowFor(e.team); if (w.id === 'xbow') m.scale.set(1.2, 1.2, 0.7); if (w.id === 'long') m.scale.set(1, 1, 1.25); G.scene.add(m);
     const arrow = { x: ox, y: oy, z: oz, vx: d[0] * speed, vy: d[1] * speed, vz: d[2] * speed, owner: e, team: e.team, g: w.g, trail: trail,
       dmg: w.instant ? w.d1 : w.d0 + (w.d1 - w.d0) * charge, head: w.head, life: 8, stuck: 0, mesh: m, auth };
     G.arrows.push(arrow);
@@ -1461,7 +1472,7 @@ function updateArrows(G, dt) {
     if (best <= 1) {
       a.x += dx * best; a.y += dy * best; a.z += dz * best;
       if (hitEnt) {
-        if (a.auth) damage(G, hitEnt, head ? (a.head || 100) : a.dmg, a.owner, head);
+        if (a.auth) damage(G, hitEnt, a.dmg, a.owner, head);
         G.scene.remove(a.mesh); G.arrows.splice(ai, 1); continue;
       }
       a.stuck = 6; if (a.owner === G.player) sfx('thud');
@@ -1475,12 +1486,15 @@ function damage(G, e, amount, by, head) {
   if (!isAuth(G, e)) {   // someone else owns this entity: tell them
     netEvent(['h', e.id, Math.round(amount), head ? 1 : 0, by ? by.id : '']); e.flash = 0.45;
     if (by === G.player) (G.hitLog = G.hitLog || new Map()).set(e.id, G.time);
-    if (by === G.player) { G.hud.hit(head); sfx(head ? 'head' : 'hit'); }
+    if (by === G.player) { G.hud.hit(head); sfx(head ? 'head' : 'hit'); if (head) earn(G, 'head', 1, null, false); }
     return;
   }
+  // short invulnerability after a hit (0.2 s) : a burst of arrows can't stack in the same instant
+  if (G.time - (e.lastDmgT ?? -9) < 0.2) return;
+  e.lastDmgT = G.time;
   e.hp -= amount; e.lastHit = G.time; e.flash = 0.45;
   if (by === G.player && e !== G.player) (G.hitLog = G.hitLog || new Map()).set(e.id, G.time);
-  if (by === G.player) { G.hud.hit(head); sfx(head ? 'head' : 'hit'); }
+  if (by === G.player) { G.hud.hit(head); sfx(head ? 'head' : 'hit'); if (head && e !== G.player) earn(G, 'head', 1, null, false); }
   if (e === G.player) { G.hud.hurt(); sfx('hurt'); }
   if (e.isBot && by) { e.aggro = by; e.aggroT = G.time; }
   if (e.hp <= 0) kill(G, e, by, head);
@@ -1499,7 +1513,7 @@ function kill(G, e, by, head) {
 function creditKill(G, victim, killer, head) {
   if (!G.player || victim === G.player) return;
   if (killer === G.player) {
-    PROFILE.kills++; earn(G, 'kill', 1, victim); if (head) earn(G, 'head');
+    PROFILE.kills++; earn(G, 'kill', 1, victim);
   } else if (G.hitLog && G.time - (G.hitLog.get(victim.id) ?? -99) < 10) {
     G.player.assists = (G.player.assists | 0) + 1; PROFILE.assists++; earn(G, 'assist', 1, victim);
   }
@@ -2408,6 +2422,10 @@ function render(G, dt) {
   G.views.forEach((vw, i) => vw.visible = p.alive && !third && i === (p.weapon | 0));
   G.view = G.views[p.weapon | 0];
   const v = G.view.userData;
+  if (G.viewTeam !== p.team) {        // our nocked arrows take our team colour
+    G.viewTeam = p.team;
+    for (const vw of G.views) for (const a of vw.userData.arrows) a.geometry = ARROW_GEOS[p.team === 1 ? 1 : 0];
+  }
   if (v.xbow) {
     const sa = v.strGeo.attributes.position; sa.setZ(1, -0.38 + p.charge * 0.24); sa.setZ(0, -0.38 + p.charge * 0.08); sa.setZ(2, -0.38 + p.charge * 0.08); sa.needsUpdate = true;
     v.arrows[0].visible = !!p.loaded;
@@ -3030,6 +3048,14 @@ initRoom();
 
 
 
+</script>
+<script>
+// application installable : service worker + bouton « Installer le jeu »
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.getElementById('installapp').hidden = false; });
+addEventListener('appinstalled', () => { document.getElementById('installapp').hidden = true; });
+document.getElementById('installapp').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; document.getElementById('installapp').hidden = true; });
 </script>
 </body>
 </html>
