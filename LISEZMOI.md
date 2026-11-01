@@ -1,3 +1,4 @@
+[LISEZMOI.md](https://github.com/user-attachments/files/34247908/LISEZMOI.md)
 # Narrow Noël – le site
 
 Capture du drapeau à l’arc, en multijoueur avec tes potes, sur le Village de Noël et la Gorge Gelée.
@@ -10,13 +11,23 @@ Le dossier contient tout le site :
 ## Le mettre en ligne gratuitement (Render)
 
 1. Crée un compte sur https://github.com puis un nouveau dépôt (bouton « New », nom : `narrow-noel`, public).
-2. Dans le dépôt : « Add file » puis « Upload files », glisse `index.html`, `server.js` et `package.json`, puis « Commit changes ».
+2. Dans le dépôt : « Add file » puis « Upload files », glisse tous les fichiers du dossier (`index.html`, `server.js`, `package.json`, `manifest.webmanifest`, `sw.js` et les trois images `icon-…png`), puis « Commit changes ».
 3. Crée un compte sur https://render.com (connexion avec GitHub, c’est le plus simple).
 4. « New » puis « Web Service », et choisis ton dépôt `narrow-noel`.
 5. Réglages : Runtime Node, Build Command `npm install`, Start Command `node server.js`, offre Free. Clique sur « Deploy ».
 6. Au bout d’une à deux minutes, Render affiche ton lien, du genre `https://narrow-noel.onrender.com`. C’est ce lien que tu donnes à tes potes.
 
 Sur l’offre gratuite, le site s’endort après 15 minutes sans joueur. La première personne qui l’ouvre attend alors environ une minute, ensuite tout est rapide.
+
+## Installer le jeu comme une appli
+
+Sur ton site, le jeu peut s'installer comme une vraie application : une icône sur le bureau (ta pièce !), le jeu dans sa propre fenêtre, sans barre d'adresse.
+
+- Sur Chrome ou Edge (PC) : clique sur le bouton « Installer le jeu » en haut du menu, ou sur l'icône d'installation à droite de la barre d'adresse.
+- Sur Android : menu ⋮ puis « Ajouter à l'écran d'accueil ».
+- Sur iPhone (Safari) : bouton Partager puis « Sur l'écran d'accueil ».
+
+Une fois installé, le mode solo marche même sans Internet. Le multijoueur et la sauvegarde des comptes passent par ton serveur, donc il faut être connecté. Les mises à jour arrivent toutes seules au prochain lancement.
 
 ## Comptes (pseudo + mot de passe)
 
