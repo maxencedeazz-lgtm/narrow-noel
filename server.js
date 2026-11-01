@@ -137,9 +137,17 @@ async function api(req, res) {
   }
 }
 
+// fichiers de l'application installable (icône, manifeste, service worker)
+const STATIC = {};
+for (const [url, file, type] of [['/manifest.webmanifest', 'manifest.webmanifest', 'application/manifest+json'], ['/sw.js', 'sw.js', 'application/javascript; charset=utf-8'],
+  ['/icon-192.png', 'icon-192.png', 'image/png'], ['/icon-512.png', 'icon-512.png', 'image/png'], ['/icon-maskable.png', 'icon-maskable.png', 'image/png']]) {
+  try { STATIC[url] = { body: fs.readFileSync(path.join(__dirname, file)), type }; } catch (e) { }
+}
 const server = http.createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200); res.end('ok'); return; }
   if (req.url.startsWith('/api/')) { api(req, res); return; }
+  const st = STATIC[req.url.split('?')[0]];
+  if (st) { res.writeHead(200, { 'Content-Type': st.type, 'Cache-Control': req.url.startsWith('/sw.js') ? 'no-cache' : 'public, max-age=86400' }); res.end(st.body); return; }
   const h = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' };
   if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { h['Content-Encoding'] = 'gzip'; res.writeHead(200, h); res.end(gz); }
   else { res.writeHead(200, h); res.end(html); }
