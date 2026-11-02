@@ -96,6 +96,8 @@ kbd { font: inherit; font-weight: 600; background: var(--chip); color: var(--pan
   font-weight: 700; padding: 6px 16px; border-radius: 999px; }
 #vignette { position: absolute; inset: 0; box-shadow: inset 0 0 160px rgba(200, 30, 40, .85); opacity: 0; }
 #vignette.on { animation: hurt .5s; }
+#healfx { position: absolute; inset: 0; box-shadow: inset 0 0 140px rgba(60, 220, 120, .75); opacity: 0; pointer-events: none; }
+#healfx.on { animation: hurt .6s; }
 #shotflash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 #shotflash.on { animation: shotfl .35s ease-out; }
 @keyframes shotfl { 0% { opacity: .75; } 100% { opacity: 0; } }
@@ -356,6 +358,7 @@ button.ghost { margin-top: 10px; width: 100%; border: 2px solid var(--chip); bac
   <div id="chatlog" aria-live="polite"></div>
   <div id="chatbar" hidden><input id="chatin" maxlength="120" placeholder="Message, Entrée pour envoyer, Échap pour annuler" aria-label="Message pour les autres joueurs" autocomplete="off"></div>
   <div id="vignette"></div>
+  <div id="healfx"></div>
   <div id="shotflash"></div>
   <div id="board" hidden></div>
   <div id="dead" hidden><div><b id="respawn">3</b><p id="deadby"></p></div></div>
@@ -541,11 +544,11 @@ const ARROW_G = 13, ARROW_MIN = 22, ARROW_MAX = 62, DRAW_TIME = 0.85;
    draw : seconds to fully draw | v0..v1 : arrow speed | g : arrow gravity | d0..d1 : body damage | head : headshot damage
    move : speed factor while drawing | zoom : scope magnification at full draw | instant : crossbow (reload then click) */
 const WEAPONS = [
-  { id: 'bow', name: 'Arc classique', desc: 'Polyvalent', draw: 0.85, v0: 22, v1: 62, g: 13, d0: 30, d1: 85, head: 100, move: 0.5, cd: 0.3 },
+  { id: 'bow', name: 'Arc classique', desc: '3 tirs pour éliminer, 2 dans la tête', draw: 0.85, v0: 22, v1: 62, g: 13, d0: 14, d1: 34, headMul: 1.5, move: 0.5, cd: 0.3 },
   { id: 'long', name: 'Arc long', desc: 'Sniper : lent à bander, très précis, gros zoom', draw: 1.45, v0: 34, v1: 112, g: 6.5, d0: 40, d1: 100, head: 100, move: 0.3, cd: 0.45, zoomK: 0.45 },
-  { id: 'short', name: 'Arc court', desc: 'Tirs rapides, dégâts faibles, on bouge vite', draw: 0.4, v0: 20, v1: 44, g: 16, d0: 18, d1: 40, head: 70, move: 0.82, cd: 0.12 },
+  { id: 'short', name: 'Arc court', desc: 'Comme l’arc classique, mais se bande presque 3 fois plus vite', draw: 0.3, v0: 22, v1: 62, g: 13, d0: 14, d1: 34, headMul: 1.5, move: 0.5, cd: 0.15 },
   { id: 'xbow', name: 'Arbalète', desc: 'Se recharge seule, tir instantané au clic', instant: true, reload: 1.35, v1: 82, g: 8.5, d1: 62, head: 100, move: 0.9, cd: 0.15 },
-  { id: 'triple', name: 'Arc triple', desc: 'Trois flèches en éventail, plus facile de toucher', draw: 1.0, v0: 22, v1: 52, g: 13, d0: 24, d1: 50, head: 60, move: 0.5, cd: 0.35, count: 3, spread: 0.055 },
+  { id: 'triple', name: 'Arc soigneur', desc: 'Trois flèches qui soignent les ennemis touchés (aucun dégât)', heal: true, h0: 12, h1: 30, draw: 0.9, v0: 22, v1: 52, g: 13, d0: 0, d1: 0, head: 60, move: 0.5, cd: 0.35, count: 3, spread: 0.055 },
 ];
 const W_OF = e => WEAPONS[e.weapon | 0] || WEAPONS[0];
 
@@ -617,8 +620,8 @@ function miniViewer(canvas, obj, o = {}) {
   requestAnimationFrame(frame);
   return v;
 }
-const ECON = { kill: 10, head: 8, assist: 5, pickup: 5, carry: 2, cap: 50, ret: 10, win: 30, loss: 10 };
-const ECON_LABEL = { kill: 'Élimination', head: 'Tir dans la tête !', assist: 'Assistance', pickup: 'Drapeau pris', carry: 'Drapeau porté', cap: 'Drapeau capturé !', ret: 'Drapeau ramené', win: 'Victoire', loss: 'Partie terminée' };
+const ECON = { kill: 10, head: 8, assist: 5, heal: 3, pickup: 5, carry: 2, cap: 50, ret: 10, win: 30, loss: 10 };
+const ECON_LABEL = { kill: 'Élimination', head: 'Tir dans la tête !', heal: 'Soin', assist: 'Assistance', pickup: 'Drapeau pris', carry: 'Drapeau porté', cap: 'Drapeau capturé !', ret: 'Drapeau ramené', win: 'Victoire', loss: 'Partie terminée' };
 const HATS = [
   { name: 'Bonnet d’équipe', color: null, price: 0 }, { name: 'Bonnet sapin', color: 0x2f8a4f, price: 80 }, { name: 'Bonnet glace', color: 0x7cc8f0, price: 80 },
   { name: 'Bonnet neige', color: 0xf3f6ff, price: 120 }, { name: 'Bonnet nuit étoilée', color: 0x3a2a6e, price: 160 }, { name: 'Bonnet doré', color: 0xf0bf4c, price: 300 }];
@@ -1211,9 +1214,9 @@ function applyLook(m, look) {
 
 // red flash when hit (also on the killing blow, while the penguin falls)
 function tintAvatar(e, m, dt) {
-  e.flash = Math.max(0, (e.flash || 0) - dt);
-  const fl = Math.min(1, e.flash / 0.3);
-  if (fl > 0 || e.tinted) { for (const mt of m.userData.mats) mt.emissive.setRGB(fl * 0.95, fl * 0.05, fl * 0.05); e.tinted = fl > 0; }
+  e.flash = Math.max(0, (e.flash || 0) - dt); e.healFlash = Math.max(0, (e.healFlash || 0) - dt);
+  const fl = Math.min(1, e.flash / 0.3), hl = Math.min(1, e.healFlash / 0.35) * (1 - fl);
+  if (fl > 0 || hl > 0 || e.tinted) { for (const mt of m.userData.mats) mt.emissive.setRGB(fl * 0.95 + hl * 0.1, fl * 0.05 + hl * 0.75, fl * 0.05 + hl * 0.25); e.tinted = fl > 0 || hl > 0; }
 }
 // procedural animation : every input is smoothed, the gait is driven by the distance walked (no foot sliding),
 // poses are blended with weights (idle / walk / run / air / draw / slide) and a few springs add secondary motion.
@@ -1415,7 +1418,7 @@ function segSegDist(p1, q1, p2, q2) {
 // arrows : the red fletching of the model is recoloured for each team (red team, blue team, neutral)
 const ARROW_GEOS = (() => {
   const base = packGeo('arrow').main, col = base.attributes.color;
-  return [[0.94, 0.16, 0.1], [0.2, 0.47, 0.95], [0.95, 0.95, 0.95]].map(tc => {
+  return [[0.94, 0.16, 0.1], [0.2, 0.47, 0.95], [0.95, 0.95, 0.95], [0.3, 0.92, 0.45]].map(tc => {
     const g = base.clone(), c = g.attributes.color;
     for (let i = 0; i < c.count; i++) if (col.getX(i) > 0.8 && col.getY(i) < 0.3) c.setXYZ(i, tc[0], tc[1], tc[2]);
     c.needsUpdate = true; return g;
@@ -1436,9 +1439,9 @@ function fireArrow(G, e, dir, charge, origin, weapon, trailIdx) {
   for (let k = 0; k < n; k++) {
     const off = (k - (n - 1) / 2) * (w.spread || 0), c = Math.cos(off), s = Math.sin(off);
     const d = [dir[0] * c + dir[2] * s, dir[1], -dir[0] * s + dir[2] * c];      // fan out around the vertical axis
-    const m = arrowFor(e.team); if (w.id === 'xbow') m.scale.set(1.2, 1.2, 0.7); if (w.id === 'long') m.scale.set(1, 1, 1.25); G.scene.add(m);
+    const m = w.heal ? new THREE.Mesh(ARROW_GEOS[3], ARROW_MAT) : arrowFor(e.team); if (w.id === 'xbow') m.scale.set(1.2, 1.2, 0.7); if (w.id === 'long') m.scale.set(1, 1, 1.25); G.scene.add(m);
     const arrow = { x: ox, y: oy, z: oz, vx: d[0] * speed, vy: d[1] * speed, vz: d[2] * speed, owner: e, team: e.team, g: w.g, trail: trail,
-      dmg: w.instant ? w.d1 : w.d0 + (w.d1 - w.d0) * charge, head: w.head, life: 8, stuck: 0, mesh: m, auth };
+      dmg: w.instant ? w.d1 : w.d0 + (w.d1 - w.d0) * charge, head: w.head, headMul: w.headMul || 1, heal: w.heal ? w.h0 + (w.h1 - w.h0) * charge : 0, life: 8, stuck: 0, mesh: m, auth };
     G.arrows.push(arrow);
     if (G.trails) addTrail(G, arrow);
   }
@@ -1472,7 +1475,7 @@ function updateArrows(G, dt) {
     if (best <= 1) {
       a.x += dx * best; a.y += dy * best; a.z += dz * best;
       if (hitEnt) {
-        if (a.auth) damage(G, hitEnt, a.dmg, a.owner, head);
+        if (a.auth) { if (a.heal) healEnt(G, hitEnt, a.heal, a.owner); else damage(G, hitEnt, head ? a.dmg * a.headMul : a.dmg, a.owner, head); }
         G.scene.remove(a.mesh); G.arrows.splice(ai, 1); continue;
       }
       a.stuck = 6; if (a.owner === G.player) sfx('thud');
@@ -1480,6 +1483,20 @@ function updateArrows(G, dt) {
     a.mesh.position.set(a.x, a.y, a.z);
     a.mesh.lookAt(a.x - a.vx, a.y - a.vy, a.z - a.vz);
   }
+}
+function healEnt(G, e, amount, by) {
+  if (!e.alive) return;
+  if (!isAuth(G, e)) {                                  // the healed player owns his health : tell him
+    netEvent(['he', e.id, Math.round(amount), by ? by.id : '']);
+    if (by === G.player && e.hp < 99) G.hud.healed(Math.round(amount), e.name, true);
+    e.healFlash = 0.5; return;
+  }
+  if (G.time - (e.lastHealT ?? -9) < 0.2) return;       // same small cap as damage
+  e.lastHealT = G.time;
+  const before = e.hp; e.hp = Math.min(100, e.hp + amount); const got = Math.round(e.hp - before);
+  e.healFlash = 0.5;
+  if (by === G.player && e !== G.player && got > 0) G.hud.healed(got, e.name, true);
+  if (e === G.player && got > 0) G.hud.healed(got, by ? by.name : '', false);
 }
 function damage(G, e, amount, by, head) {
   if (!e.alive) return;
@@ -1538,7 +1555,7 @@ function spawn(G, e) {
   }
   if (e.isBot && !e.puppet) {
     const r = Math.random();
-    e.weapon = e.role === 'defend' ? (r < 0.5 ? 1 : r < 0.75 ? 3 : 0) : (r < 0.3 ? 2 : r < 0.6 ? 0 : r < 0.8 ? 4 : r < 0.92 ? 3 : 1);
+    e.weapon = e.role === 'defend' ? (r < 0.5 ? 1 : r < 0.75 ? 3 : 0) : (r < 0.32 ? 2 : r < 0.64 ? 0 : r < 0.8 ? 4 : r < 0.92 ? 3 : 1);
   }
   if (e.model) e.model.visible = true;
 }
@@ -1674,6 +1691,7 @@ function botThink(G, b, dt) {
   if (b.scanT <= 0) {
     b.scanT = 0.22;
     let best = null, bs = 1e9;
+    const healer = !!W_OF(b).heal;
     for (const e of G.ents) {
       if (!e.alive || e.team === b.team) continue;
       const d = Math.hypot(e.x - b.x, e.y - b.y, e.z - b.z);
@@ -1682,7 +1700,7 @@ function botThink(G, b, dt) {
       const facing = ((e.x - b.x) * fx + (e.z - b.z) * fz) / Math.max(d, 0.01);
       if (facing < -0.25 && d > 10 && b.aggro !== e) continue;            // behind us : can't see
       if (!losClear(G, b.x, b.y + 1.6, b.z, e.x, e.y + 1.2, e.z) && !losClear(G, b.x, b.y + 1.6, b.z, e.x, e.y + 1.6, e.z)) continue;
-      const score = d - (e.carrying ? 40 : 0) - (e === b.aggro ? 15 : 0) - (e.hp < 50 ? 8 : 0);
+      const score = healer ? d + e.hp * 0.3 : d - (e.carrying ? 40 : 0) - (e === b.aggro ? 15 : 0) - (e.hp < 50 ? 8 : 0);
       if (score < bs) { bs = score; best = e; }
     }
     if (best !== b.target) { b.target = best; b.seenT = 0; }
@@ -1697,7 +1715,16 @@ function botThink(G, b, dt) {
   if (b.thinkT <= 0) {
     b.thinkT = 0.9 + Math.random() * 0.5;
     let goal = null, via;
+    const mate = false ? (() => {             // healer : stay with the team (flag carrier first)
+      let m = null, md = 1e9;
+      for (const e of G.ents) if (e.alive && e.team === b.team && e !== b) {
+        const d = Math.hypot(e.x - b.x, e.z - b.z) - (e.carrying ? 100 : 0) - (e.hp < 70 ? 20 : 0) - (!e.isBot ? 10 : 0);
+        if (d < md) { md = d; m = e; }
+      }
+      return m;
+    })() : null;
     if (b.carrying) goal = home;                                                        // bring it home
+    else if (mate && Math.hypot(mate.x - b.x, mate.z - b.z) > 7) goal = mate;
     else if (own.state === 'carried') goal = own.carrier;                                // chase our flag
     else if (own.state === 'dropped' && (b.role === 'defend' || Math.hypot(own.x - b.x, own.z - b.z) < 35)) goal = own;
     else if (lowHp && fighting) goal = home;                                             // back off and heal
@@ -1825,7 +1852,7 @@ function sfx(kind) {
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     const P = { shoot: [520, 180, 0.12, 'triangle', 0.08], thud: [140, 60, 0.08, 'square', 0.04], hit: [880, 880, 0.07, 'square', 0.05],
       head: [1320, 1760, 0.12, 'square', 0.06], hurt: [200, 90, 0.18, 'sawtooth', 0.06], good: [660, 990, 0.25, 'triangle', 0.08],
-      bad: [330, 220, 0.3, 'triangle', 0.08], win: [523, 1046, 0.5, 'triangle', 0.1], chat: [760, 980, 0.09, 'sine', 0.05], slide: [240, 120, 0.35, 'sawtooth', 0.04], shot: [1500, 700, 0.12, 'square', 0.04], coin: [1180, 1760, 0.12, 'triangle', 0.05], xbow: [300, 120, 0.1, 'square', 0.07], reload: [420, 640, 0.06, 'triangle', 0.04] }[kind];
+      bad: [330, 220, 0.3, 'triangle', 0.08], win: [523, 1046, 0.5, 'triangle', 0.1], chat: [760, 980, 0.09, 'sine', 0.05], heal: [520, 1040, 0.25, 'sine', 0.06], slide: [240, 120, 0.35, 'sawtooth', 0.04], shot: [1500, 700, 0.12, 'square', 0.04], coin: [1180, 1760, 0.12, 'triangle', 0.05], xbow: [300, 120, 0.1, 'square', 0.07], reload: [420, 640, 0.06, 'triangle', 0.04] }[kind];
     o.type = P[3]; o.frequency.setValueAtTime(P[0], t); o.frequency.exponentialRampToValueAtTime(P[1], t + P[2]);
     g.gain.setValueAtTime(P[4], t); g.gain.exponentialRampToValueAtTime(0.0001, t + P[2]);
     o.connect(g).connect(AC.destination); o.start(t); o.stop(t + P[2] + 0.02);
@@ -1876,6 +1903,11 @@ function makeHud() {
       if (show) drawXh(xcv, XH, xGap, hitT, hitHead);
     },
     hurt() { const v = $('#vignette'); v.classList.remove('on'); void v.offsetWidth; v.classList.add('on'); },
+    healed(n, who, gave) {
+      if (gave) { hitT = 1; hitHead = false; this.msg(`+${n} PV pour ${who}`); sfx('heal'); return; }
+      const v = $('#healfx'); v.classList.remove('on'); void v.offsetWidth; v.classList.add('on');
+      this.msg(who ? `${who} t’a soigné : +${n} PV` : `+${n} PV`); sfx('heal');
+    },
     dead(by) { $('#deadby').textContent = by ? `Touché par ${by}` : 'Tu es tombé'; $('#dead').hidden = false; },
     update(G) {
       const p = G.player;
@@ -1921,13 +1953,19 @@ function trailMat(i) {
     vertexShader: 'attribute float a; varying float va; void main(){ va = a; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform vec3 color; uniform float time; uniform float rainbow; varying float va; vec3 hsv(float h){ vec3 k = abs(fract(vec3(h) + vec3(0.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0); return clamp(k - 1.0, 0.0, 1.0); } void main(){ vec3 c = rainbow > 0.5 ? hsv(fract(va * 1.6 + time * 0.6)) * 0.9 + 0.1 : color; gl_FragColor = vec4(c, va); }' }));
 }
+let HEAL_TRAIL = null;
+function healTrailMat() {
+  return HEAL_TRAIL || (HEAL_TRAIL = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { color: { value: new THREE.Color(0x7dffa0) } },
+    vertexShader: 'attribute float a; varying float va; void main(){ va = a; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 color; varying float va; void main(){ gl_FragColor = vec4(color, va); }' }));
+}
 function addTrail(G, arrow) {
   if (!trailMats) trailMats = [0xffb3b8, 0xb3ccff, 0xffffff].map(c => new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { color: { value: new THREE.Color(c) } },
     vertexShader: 'attribute float a; varying float va; void main(){ va = a; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform vec3 color; varying float va; void main(){ gl_FragColor = vec4(color, va); }' }));
   const T = TRAILS[arrow.trail | 0];
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), T && T.color !== null && (arrow.trail | 0) > 0 ? trailMat(arrow.trail | 0) : trailMats[arrow.team === 0 ? 0 : arrow.team === 1 ? 1 : 2]);
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), arrow.heal ? healTrailMat() : T && T.color !== null && (arrow.trail | 0) > 0 ? trailMat(arrow.trail | 0) : trailMats[arrow.team === 0 ? 0 : arrow.team === 1 ? 1 : 2]);
   mesh.frustumCulled = false; mesh.visible = false; G.scene.add(mesh);
   G.trails.push({ arrow, pts: [], mesh });
 }
@@ -2132,7 +2170,7 @@ function renderKeyHint() {
   const kb = c => { const k = document.createElement('kbd'); k.textContent = keyName(c); p.append(k); };
   kb(BINDS.forward); t(' '); kb(BINDS.left); t(' '); kb(BINDS.back); t(' '); kb(BINDS.right); t(' se déplacer, ');
   kb(BINDS.sprint); t(' courir, '); kb(BINDS.jump); t(' sauter, '); kb(BINDS.slide); t(' glissade, '); kb(BINDS.board); t(' scores, '); kb(BINDS.view); t(' vue 3e personne, '); kb(BINDS.shot); t(' capture d’écran, '); kb(BINDS.chat);
-  t(' discuter. Maintiens le clic gauche pour bander l’arc, relâche pour tirer, clic droit pour viser (zoom). 1 à 5 ou la molette pour changer d’arc : classique, long avec zoom, court, arbalète, triple. Avance contre une échelle pour grimper, Échap pour la pause. Clavier et souris nécessaires.');
+  t(' discuter. Maintiens le clic gauche pour bander l’arc, relâche pour tirer, clic droit pour viser (zoom). 1 à 5 ou la molette pour changer d’arc : classique, long avec zoom, court, arbalète, soigneur (soigne les ennemis touchés). Avance contre une échelle pour grimper, Échap pour la pause. Clavier et souris nécessaires.');
 }
 function openKeys() { capturing = null; renderBinds(); $('#keys').hidden = false; }
 function renderXhOpts() {
@@ -2424,7 +2462,7 @@ function render(G, dt) {
   const v = G.view.userData;
   if (G.viewTeam !== p.team) {        // our nocked arrows take our team colour
     G.viewTeam = p.team;
-    for (const vw of G.views) for (const a of vw.userData.arrows) a.geometry = ARROW_GEOS[p.team === 1 ? 1 : 0];
+    G.views.forEach((vw, i) => { for (const a of vw.userData.arrows) a.geometry = ARROW_GEOS[WEAPONS[i].heal ? 3 : p.team === 1 ? 1 : 0]; });
   }
   if (v.xbow) {
     const sa = v.strGeo.attributes.position; sa.setZ(1, -0.38 + p.charge * 0.24); sa.setZ(0, -0.38 + p.charge * 0.08); sa.setZ(2, -0.38 + p.charge * 0.08); sa.needsUpdate = true;
@@ -2842,6 +2880,9 @@ function handleEvent(G, ev) {
     if (!NET.isHost) G.hud.msg(a, b < 0 ? undefined : b);
   } else if (type === 'c') {
     if (a === G.player.id) G.player.caps++;
+  } else if (type === 'he') {
+    const tgt = a === G.player.id ? G.player : G.byId.get(a);
+    if (tgt && isAuth(G, tgt)) healEnt(G, tgt, b, G.byId.get(c) || null);
   } else if (type === 'r') {
     if (a === G.player.id) earn(G, 'ret');
   }
